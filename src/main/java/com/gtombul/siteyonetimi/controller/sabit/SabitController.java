@@ -5,9 +5,7 @@ import com.gtombul.siteyonetimi.model.anket.KararOyu;
 import com.gtombul.siteyonetimi.model.bildirim.BildirimDurumu;
 import com.gtombul.siteyonetimi.model.bildirim.BildirimKanali;
 import com.gtombul.siteyonetimi.model.bildirim.BildirimOncelik;
-import com.gtombul.siteyonetimi.model.enums.StokIslemTuru;
-import com.gtombul.siteyonetimi.model.enums.YakinlikDerecesi;
-import com.gtombul.siteyonetimi.model.enums.ZiyaretciDurum;
+import com.gtombul.siteyonetimi.model.enums.*;
 import com.gtombul.siteyonetimi.model.kargo.KargoDurum;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -67,6 +65,24 @@ public class SabitController {
     @GetMapping("/kargo-durum")
     public ResponseEntity<List<KargoDurum>> getKArgoDurumList() {
         return new ResponseEntity<>(Arrays.asList(KargoDurum.values()), HttpStatus.OK);
+    }
+
+    // --- YENİ EKLENECEK METOTLAR (Talep/Görev Modülü) ---
+    @GetMapping("/talep-durumlari")
+    public ResponseEntity<List<TalepDurum>> getTalepDurumlari() {
+        // Enum'ları doğrudan liste olarak döndürüyoruz, @JsonFormat(Shape.OBJECT)
+        // sayesinde JSON nesnelerine dönüşecekler.
+        return ResponseEntity.ok(Arrays.asList(TalepDurum.values()));
+    }
+
+    @GetMapping("/talep-oncelikleri")
+    public ResponseEntity<List<TalepOncelik>> getTalepOncelikleri() {
+        return ResponseEntity.ok(Arrays.asList(TalepOncelik.values()));
+    }
+
+    @GetMapping("/gorev-durumlari")
+    public ResponseEntity<List<GorevDurum>> getGorevDurumlari() {
+        return ResponseEntity.ok(Arrays.asList(GorevDurum.values()));
     }
 
 }

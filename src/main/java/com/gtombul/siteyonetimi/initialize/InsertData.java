@@ -27,6 +27,12 @@ import com.gtombul.siteyonetimi.model.enums.*;
 import com.gtombul.siteyonetimi.model.ilan.*;
 import com.gtombul.siteyonetimi.model.insan.Kisi;
 import com.gtombul.siteyonetimi.model.muhasebe.AidatPlani;
+import com.gtombul.siteyonetimi.model.personel.Personel;
+import com.gtombul.siteyonetimi.model.talep.Gorev;
+import com.gtombul.siteyonetimi.model.talep.Talep;
+import com.gtombul.siteyonetimi.model.talep.TalepGuncelleme;
+import com.gtombul.siteyonetimi.model.talep.TalepKategori;
+import com.gtombul.siteyonetimi.model.user.UserEntity;
 import com.gtombul.siteyonetimi.repository.anket.AnketRepository;
 import com.gtombul.siteyonetimi.repository.arac.AracRepository;
 import com.gtombul.siteyonetimi.repository.bina.*;
@@ -34,6 +40,12 @@ import com.gtombul.siteyonetimi.repository.ilan.IlanKategoriRepository;
 import com.gtombul.siteyonetimi.repository.ilan.IlanRepository;
 import com.gtombul.siteyonetimi.repository.insan.KisiRepository;
 import com.gtombul.siteyonetimi.repository.muhasebe.AidatPlaniRepository;
+import com.gtombul.siteyonetimi.repository.personel.PersonelRepository;
+import com.gtombul.siteyonetimi.repository.talep.GorevRepository;
+import com.gtombul.siteyonetimi.repository.talep.TalepGuncellemeRepository;
+import com.gtombul.siteyonetimi.repository.talep.TalepKategoriRepository;
+import com.gtombul.siteyonetimi.repository.talep.TalepRepository;
+import com.gtombul.siteyonetimi.repository.user.UserRepository;
 import com.gtombul.siteyonetimi.service.banka.BankaService;
 import com.gtombul.siteyonetimi.service.bina.FirmaService;
 import com.gtombul.siteyonetimi.service.demirbas.DemirbasKategoriService;
@@ -108,6 +120,13 @@ public class InsertData implements CommandLineRunner {
     private final IlanKategoriRepository kategoriRepo;
     private final IlanRepository ilanRepo;
 
+    private final UserRepository userRepository;
+    private final PersonelRepository personelRepository;
+    private final TalepRepository talepRepository;
+    private final TalepKategoriRepository talepKategoriRepository;
+    private final TalepGuncellemeRepository talepGuncellemeRepository;
+    private final GorevRepository gorevRepository;
+
     @Override
     public void run(String... args) {
         kullaniciOlustur();
@@ -127,6 +146,8 @@ public class InsertData implements CommandLineRunner {
         kargoDataOlustur();
 
         ilanOlustur();
+
+        talepGorevOlustur();
     }
 
     private void ilanOlustur() {
@@ -2010,6 +2031,117 @@ public class InsertData implements CommandLineRunner {
                 .build();
 
         return aidatPlaniMapper.toEntity(aidatPlaniService.create(dto));
+    }
+
+    /**
+     * Talep, Talep Kategorisi, Görev ve Talep Güncelleme (Yorum)
+     * için örnek test verileri oluşturur.
+     */
+    private void talepGorevOlustur() {
+        if (talepKategoriRepository.count() > 0) {
+            log.warn("👉 Talep/Görev verileri zaten yüklü, atlanıyor.");
+            return;
+        }
+
+        // 1. Gerekli Varlıkları Bul
+        // "gokhantombul@hotmail.com" kullanıcısını bul
+        UserEntity talepEdenUser = userRepository.findByUsername("gokhantombul@hotmail.com")
+                .orElseThrow(() -> new RuntimeException("Test verisi için 'gokhantombul@hotmail.com' kullanıcısı bulunamadı."));
+
+        // "Ahmet YILMAZ" personelini bul (ID: 1L varsayımıyla)
+        Personel atananPersonel = personelRepository.findById(1L)
+                .orElseThrow(() -> new RuntimeException("Test verisi için Personel (ID: 1) bulunamadı."));
+
+        // "A Blok, Kat 1, Daire 1" i bul (ID: 1L varsayımıyla)
+        Daire ilgiliDaire = daireRepository.findById(1L)
+                .orElseThrow(() -> new RuntimeException("Test verisi için Daire (ID: 1) bulunamadı."));
+
+
+        // 2. Talep Kategorileri Oluştur
+        log.info("👉 Talep Kategorileri oluşturuluyor...");
+        TalepKategori katTeknik = talepKategoriRepository.save(
+                TalepKategori.builder()
+                        .ad("Teknik Arıza")
+                        .aciklama("Asansör, elektrik, su arızaları")
+                        .build()
+        );
+
+        TalepKategori katTemizlik = talepKategoriRepository.save(
+                TalepKategori.builder()
+                        .ad("Temizlik")
+                        .aciklama("Ortak alan temizlik talepleri")
+                        .build()
+        );
+
+        TalepKategori katGuvenlik = talepKategoriRepository.save(
+                TalepKategori.builder()
+                        .ad("Güvenlik")
+                        .aciklama("Güvenlik ve giriş/çıkış sorunları")
+                        .build()
+        );
+
+
+        // 3. Talep (Teknik Arıza) Oluştur
+        log.info("👉 Örnek Talep oluşturuluyor...");
+        Talep talep1 = Talep.builder()
+                .daire(ilgiliDaire)
+                .kategori(katTeknik)
+                .olusturanKullanici(talepEdenUser) // -> Bu 'olusturan' alanı ile BaseEntity'den otomatik gelmeli
+                .konu("Asansör çalışmıyor (A Blok)")
+                .aciklama("A Blok'taki sol asansör 3. kata çağırmama rağmen gelmedi, ekranı kapalı.")
+                .talepDurum(TalepDurum.ACIK) // Enum'larınızın adını varsayıyorum
+                .talepOncelik(TalepOncelik.YUKSEK) // Enum'larınızın adını varsayıyorum
+                .build();
+
+        talep1 = talepRepository.save(talep1);
+
+        // BaseEntity 'olusturan' alanını manuel set edelim (test verisi için)
+        // Normalde SecurityContext'ten otomatik alır.
+        talep1.setOlusturan(talepEdenUser.getId());
+        talepRepository.save(talep1); // Güncelle
+
+
+        // 4. Bu Talebe Ait Bir Görev Oluştur (Personele Atama)
+        log.info("👉 Örnek Görev oluşturuluyor...");
+        Gorev gorev1 = Gorev.builder()
+                .talep(talep1)
+                .atananPersonel(atananPersonel)
+                .yoneticiNotu("Ahmet Bey, A Blok asansör arızasını kontrol ediniz.")
+                .gorevDurum(GorevDurum.ATANDI) // Enum'larınızın adını varsayıyorum
+                .build();
+
+        gorevRepository.save(gorev1);
+
+
+        // 5. Talebe Bir Güncelleme/Yorum Ekle (Kullanıcıdan)
+        log.info("👉 Örnek Talep Güncelleme (Yorum) oluşturuluyor...");
+        TalepGuncelleme guncelleme1 = TalepGuncelleme.builder()
+                .talep(talep1)
+                // .yapanKullanici(talepEdenUser) // -> Bu 'olusturan' alanı ile BaseEntity'den otomatik gelmeli
+                .aciklama("Teknisyenlere haber verildi mi acaba? Acil bekliyoruz.")
+                .build();
+
+        guncelleme1 = talepGuncellemeRepository.save(guncelleme1);
+        guncelleme1.setOlusturan(talepEdenUser.getId());
+        talepGuncellemeRepository.save(guncelleme1);
+
+
+        // 6. Başka bir Talep (Temizlik) Oluştur (Görevsiz)
+        log.info("👉 Örnek 2. Talep (Temizlik) oluşturuluyor...");
+        Talep talep2 = Talep.builder()
+                .daire(ilgiliDaire)
+                .kategori(katTemizlik)
+                .konu("Giriş katı lobisi kirli")
+                .aciklama("Lobi camları ve yerler dün temizlenmemiş görünüyor.")
+                .talepDurum(TalepDurum.ACIK)
+                .talepOncelik(TalepOncelik.ORTA)
+                .build();
+
+        talep2 = talepRepository.save(talep2);
+        talep2.setOlusturan(talepEdenUser.getId());
+        talepRepository.save(talep2);
+
+        log.info("✅ Talep ve Görev modülleri için test verileri başarıyla yüklendi.");
     }
 
 }
